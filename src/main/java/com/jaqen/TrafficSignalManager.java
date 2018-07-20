@@ -22,7 +22,7 @@ public class TrafficSignalManager
 
 	}
 
-	public void startTraffic() throws InterruptedException
+	public void startTrafficSimulator() throws InterruptedException
 	{
 		startLights();
 		startTrafficGenerator(eastBound);
