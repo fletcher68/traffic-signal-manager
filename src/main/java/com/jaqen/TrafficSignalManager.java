@@ -6,16 +6,18 @@ import java.util.Queue;
 public class TrafficSignalManager
 {
 
-	private Queue<Car> eastBound = new LinkedList<Car>();
-	private Queue<Car> westBound = new LinkedList<Car>();
-	private Queue<Car> northBound = new LinkedList<Car>();
-	private Queue<Car> southBound = new LinkedList<Car>();
+	private Queue<Car> weaverEastBound = new LinkedList<Car>();
+	private Queue<Car> weaverWestBound = new LinkedList<Car>();
+	private Queue<Car> snellNorthBound = new LinkedList<Car>();
+	private Queue<Car> snellSouthBound = new LinkedList<Car>();
 
-	private static String snell = "GREEN";
-	private static String weaver = "RED";
+	private static String snellCurrentState = "GREEN";
+	private static String weaverCurrentState = "RED";
+	private static String snellPreviousState = "";
+	private static String weaverPreviousState = "";
 
-	Integer numSeconds = 0;
-	final Integer MAX_TIME = 20;
+	private static Integer numSeconds = 0;
+	final Integer MAX_TIME = 30;
 
 	public TrafficSignalManager()
 	{
@@ -24,37 +26,62 @@ public class TrafficSignalManager
 
 	public void startTrafficSimulator() throws InterruptedException
 	{
-		startLights();
-		startTrafficGenerator(eastBound);
-		startTrafficGenerator(westBound);
-		startTrafficGenerator(northBound);
-		startTrafficGenerator(southBound);
+		startClock();
+		startLightRegulator();
 		startLogging();
+		startTrafficGenerator(weaverEastBound);
+		startTrafficGenerator(weaverWestBound);
+		startTrafficGenerator(snellNorthBound);
+		startTrafficGenerator(snellSouthBound);
+		startTrafficRegulator();
+	}
+
+	public void startClock() throws InterruptedException
+	{
+		new Thread(() ->
+		{
+
+			try
+			{
+				while (numSeconds < MAX_TIME + 1)
+				{
+					Thread.sleep(1000);
+					numSeconds++;
+				}
+			} catch (InterruptedException e)
+			{
+			}
+
+		}).start();
 	}
 
 	public void startLogging() throws InterruptedException
 	{
-		while (numSeconds < MAX_TIME)
+		new Thread(() ->
 		{
-			logTraffic();
-			regulateTraffic();
-			Thread.sleep(1000);
-			numSeconds++;
-		}
+
+			try
+			{
+				while (numSeconds < MAX_TIME)
+				{
+					logTraffic();
+					Thread.sleep(1000);
+				}
+			} catch (InterruptedException e)
+			{
+			}
+
+		}).start();
 	}
 
 	public void logTraffic()
 	{
-		new Thread(() ->
-		{
-			System.out.print(numSeconds + ":");
-			System.out.print("N = " + northBound.size() + "; ");
-			System.out.print("S = " + southBound.size() + "; ");
-			System.out.print("E = " + eastBound.size() + "; ");
-			System.out.print("W = " + westBound.size() + "");
-			System.out.println("");
-
-		}).start();
+		System.out.print(numSeconds + ":");
+		System.out.print("N = " + snellNorthBound.size() + "; ");
+		System.out.print("S = " + snellSouthBound.size() + "; ");
+		System.out.print("E = " + weaverEastBound.size() + "; ");
+		System.out.print("W = " + weaverWestBound.size() + "");
+		System.out.println();
 	}
 
 	public void startTrafficGenerator(Queue<Car> q)
@@ -79,29 +106,73 @@ public class TrafficSignalManager
 		}).start();
 	}
 
-	public void regulateTraffic()
+	public void startTrafficRegulator()
 	{
+		/*
+		 * Thread for Snell Road
+		 */
 		new Thread(() ->
 		{
+			snellPreviousState = snellCurrentState;
+			try
+			{
+				while (numSeconds < MAX_TIME)
+				{
+					if ("GREEN".equals(snellCurrentState) && "GREEN".equals(snellPreviousState))
+					{
+						snellNorthBound.poll();
+						snellSouthBound.poll();
+					} else if ("GREEN".equals(snellCurrentState) && "RED".equals(snellPreviousState))
+					{
+						Thread.sleep(1000);
+						snellNorthBound.poll();
+						snellSouthBound.poll();
+					}
 
-			if ("GREEN".equals(snell))
+					snellPreviousState = snellCurrentState;
+					Thread.sleep(1000);
+				}
+			} catch (InterruptedException e)
 			{
-				northBound.poll();
-				southBound.poll();
-			}
-			if ("GREEN".equals(weaver))
-			{
-				eastBound.poll();
-				westBound.poll();
 			}
 		}).start();
+
+		/*
+		 * Thread for Weaver Road
+		 */
+		new Thread(() ->
+		{
+			weaverPreviousState = weaverCurrentState;
+
+			try
+			{
+				while (numSeconds < MAX_TIME)
+				{
+					if ("GREEN".equals(weaverCurrentState) && "GREEN".equals(weaverPreviousState))
+					{
+						weaverEastBound.poll();
+						weaverWestBound.poll();
+					} else if ("GREEN".equals(weaverCurrentState) && "RED".equals(weaverPreviousState))
+					{
+						Thread.sleep(1000);
+						weaverEastBound.poll();
+						weaverWestBound.poll();
+					}
+					weaverPreviousState = weaverCurrentState;
+					Thread.sleep(1000);
+				}
+			} catch (InterruptedException e)
+			{
+			}
+		}).start();
+
 	}
 
-	public void startLights()
+	public void startLightRegulator()
 	{
 
-		snell = "GREEN";
-		weaver = "RED";
+		snellCurrentState = "GREEN";
+		weaverCurrentState = "RED";
 		new Thread(() ->
 		{
 
@@ -110,13 +181,13 @@ public class TrafficSignalManager
 				while (numSeconds < MAX_TIME)
 				{
 					Thread.sleep(3000);
-					snell = "RED";
+					snellCurrentState = "RED";
 					Thread.sleep(1000);
-					weaver = "GREEN";
+					weaverCurrentState = "GREEN";
 					Thread.sleep(3000);
-					weaver = "RED";
+					weaverCurrentState = "RED";
 					Thread.sleep(1000);
-					snell = "GREEN";
+					snellCurrentState = "GREEN";
 				}
 
 			} catch (Exception e)
